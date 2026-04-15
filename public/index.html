@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SoundDrop</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0e12;
+      --card: #17171f;
+      --border: #2a2a38;
+      --accent: #f0c040;
+      --accent-dim: #f0c04018;
+      --text: #e8e8f0;
+      --muted: #6868a0;
+      --error: #ff7070;
+      --success: #50e0a0;
+      --mono: 'Space Mono', monospace;
+      --sans: 'Syne', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 50% at 50% -10%, #f0c04014, transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px 28px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 32px 80px #00000090;
+      animation: fadeIn .4s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100% { opacity:.5; transform: scaleY(.6); } 50% { opacity:1; transform: scaleY(1.2); } }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 28px; }
+    .disc {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--accent); margin: 0 auto 14px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 28px #f0c04055;
+      animation: spin 5s linear infinite;
+    }
+    .disc-inner {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--card); border: 3px solid var(--bg);
+    }
+    h1 { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+    .sub { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    /* Label */
+    .label {
+      display: block; font-family: var(--mono); font-size: 11px;
+      font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 8px;
+    }
+
+    /* Input row */
+    .input-row { display: flex; gap: 8px; margin-bottom: 6px; }
+    input[type="text"] {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px;
+      color: var(--text); font-size: 13px; font-family: var(--mono); outline: none;
+      transition: border-color .2s;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    input[type="text"].error { border-color: var(--error); }
+
+    .icon-btn {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0 14px; cursor: pointer;
+      font-size: 18px; transition: background .15s;
+    }
+    .icon-btn:hover { background: #1a1a28; }
+
+    .err-hint { font-family: var(--mono); font-size: 11px; color: var(--error); margin: 0 0 12px; }
+
+    /* Info banner */
+    .info-banner {
+      display: flex; gap: 8px; align-items: flex-start;
+      background: #1a1a28; border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; margin: 10px 0 20px;
+      font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.5;
+    }
+
+    /* Options */
+    .options-row { display: flex; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+    .option-group { flex: 1; min-width: 160px; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip {
+      display: flex; flex-direction: column; align-items: center;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 12px; cursor: pointer;
+      transition: all .15s; min-width: 52px;
+    }
+    .chip:hover { border-color: var(--muted); }
+    .chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .chip-label { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+    .chip-desc { font-size: 10px; color: var(--muted); margin-top: 1px; }
+    .chip.active .chip-desc { color: var(--accent); opacity: .7; }
+
+    /* Preview */
+    .preview {
+      display: none; background: #1a1a28; border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; margin-bottom: 20px;
+      flex-direction: row; gap: 14px; align-items: center;
+      animation: fadeIn .3s ease;
+    }
+    .preview.visible { display: flex; }
+    .thumb { width: 72px; height: 50px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+    .preview-info { overflow: hidden; }
+    .preview-title { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .preview-channel { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .preview-duration { font-family: var(--mono); font-size: 11px; color: var(--accent); margin-top: 4px; }
+
+    /* Main button */
+    .main-btn {
+      width: 100%; padding: 15px;
+      background: var(--accent); color: #0e0e12;
+      border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 800; cursor: pointer;
+      font-family: var(--sans); letter-spacing: .3px;
+      transition: opacity .2s, transform .1s;
+      margin-bottom: 6px;
+    }
+    .main-btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+    .main-btn:active:not(:disabled) { transform: translateY(0); }
+    .main-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .main-btn.loading { background: #2a2a38; color: var(--muted); }
+
+    /* Waves loader */
+    .waves { display: flex; gap: 3px; align-items: flex-end; justify-content: center; height: 16px; }
+    .wave-bar {
+      width: 4px; background: var(--muted); border-radius: 2px;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    /* Error box */
+    .error-box {
+      display: none; background: #ff707018; border: 1px solid var(--error);
+      border-radius: 10px; padding: 12px 14px; margin-top: 10px;
+      font-family: var(--mono); font-size: 12px; color: var(--error);
+      animation: fadeIn .3s ease;
+    }
+    .error-box.visible { display: block; }
+
+    /* Footer */
+    footer {
+      text-align: center; font-family: var(--mono); font-size: 11px;
+      color: var(--muted); margin-top: 24px;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    @media (max-width: 400px) {
+      .card { padding: 24px 16px; }
+      h1 { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <!-- Header -->
+    <div class="header">
+      <div class="disc"><div class="disc-inner"></div></div>
+      <h1>SoundDrop</h1>
+      <p class="sub">Descarga audio de YouTube · Gratis · Sin registro</p>
+    </div>
+
+    <!-- URL Input -->
+    <label class="label">Enlace de YouTube</label>
+    <div class="input-row">
+      <input type="text" id="urlInput" placeholder="https://www.youtube.com/watch?v=..." />
+      <button class="icon-btn" id="pasteBtn" title="Pegar">📋</button>
+    </div>
+    <p class="err-hint" id="urlHint"></p>
+
+    <!-- Info banner -->
+    <div class="info-banner">
+      <span>ℹ️</span>
+      <span>Usa esto solo con contenido de libre uso: Creative Commons, podcasts, música sin derechos.</span>
+    </div>
+
+    <!-- Preview -->
+    <div class="preview" id="preview">
+      <img class="thumb" id="thumb" src="" alt="thumbnail" />
+      <div class="preview-info">
+        <div class="preview-title" id="previewTitle"></div>
+        <div class="preview-channel" id="previewChannel"></div>
+        <div class="preview-duration" id="previewDuration"></div>
+      </div>
+    </div>
+
+    <!-- Format -->
+    <div class="options-row">
+      <div class="option-group">
+        <label class="label">Formato</label>
+        <div class="chips" id="formatChips">
+          <button class="chip active" data-value="mp3"><span class="chip-label">MP3</span><span class="chip-desc">Universal</span></button>
+          <button class="chip" data-value="ogg"><span class="chip-label">OGG</span><span class="chip-desc">Compacto</span></button>
+          <button class="chip" data-value="wav"><span class="chip-label">WAV</span><span class="chip-desc">Sin pérdida</span></button>
+          <button class="chip" data-value="opus"><span class="chip-label">OPUS</span><span class="chip-desc">Eficiente</span></button>
+        </div>
+      </div>
+      <div class="option-group">
+        <label class="label">Calidad</label>
+        <div class="chips" id="qualityChips">
+          <button class="chip" data-value="128"><span class="chip-label">128k</span><span class="chip-desc">Ligero</span></button>
+          <button class="chip active" data-value="192"><span class="chip-label">192k</span><span class="chip-desc">Bueno</span></button>
+          <button class="chip" data-value="320"><span class="chip-label">320k</span><span class="chip-desc">Mejor</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <button class="main-btn" id="infoBtn">🔍 Buscar video</button>
+    <button class="main-btn" id="downloadBtn" style="display:none; background:#50e0a0;">⬇ Descargar Audio</button>
+
+    <!-- Error -->
+    <div class="error-box" id="errorBox"></div>
+
+    <footer>
+      Hecho con ❤️ · Código abierto · Sin publicidad
+    </footer>
+  </div>
+
+  <script>
+    const urlInput = document.getElementById('urlInput');
+    const pasteBtn = document.getElementById('pasteBtn');
+    const urlHint = document.getElementById('urlHint');
+    const infoBtn = document.getElementById('infoBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const preview = document.getElementById('preview');
+    const errorBox = document.getElementById('errorBox');
+
+    let selectedFormat = 'mp3';
+    let selectedQuality = '192';
+    let videoInfo = null;
+
+    const isValidYT = (u) => /(?:youtube\.com\/(?:watch\?.*v=|shorts\/)|youtu\.be\/)[\w-]+/.test(u);
+
+    const formatTime = (s) => {
+      const m = Math.floor(s / 60), sec = s % 60;
+      return `${m}:${sec.toString().padStart(2, '0')}`;
+    };
+
+    // Chip selection
+    document.querySelectorAll('#formatChips .chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#formatChips .chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedFormat = btn.dataset.value;
+      });
+    });
+
+    document.querySelectorAll('#qualityChips .chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#qualityChips .chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedQuality = btn.dataset.value;
+      });
+    });
+
+    // Paste
+    pasteBtn.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        urlInput.value = text;
+        resetState();
+      } catch { urlInput.focus(); }
+    });
+
+    urlInput.addEventListener('input', resetState);
+
+    function resetState() {
+      videoInfo = null;
+      preview.classList.remove('visible');
+      downloadBtn.style.display = 'none';
+      infoBtn.style.display = 'block';
+      errorBox.classList.remove('visible');
+      urlHint.textContent = '';
+    }
+
+    function showError(msg) {
+      errorBox.textContent = '⚠️ ' + msg;
+      errorBox.classList.add('visible');
+    }
+
+    // Fetch info
+    infoBtn.addEventListener('click', async () => {
+      const url = urlInput.value.trim();
+      if (!url) return;
+
+      if (!isValidYT(url)) {
+        urlInput.classList.add('error');
+        urlHint.textContent = '⚠ Enlace no reconocido — usa un link de YouTube';
+        return;
+      }
+      urlInput.classList.remove('error');
+      urlHint.textContent = '';
+
+      infoBtn.disabled = true;
+      infoBtn.classList.add('loading');
+      infoBtn.innerHTML = `<div class="waves">${[1,2,3,4,5].map(i => `<div class="wave-bar" style="height:${[8,14,10,16,9][i-1]}px;animation-delay:${i*0.1}s"></div>`).join('')}</div>`;
+      errorBox.classList.remove('visible');
+
+      try {
+        const res = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error desconocido');
+
+        videoInfo = data;
+        document.getElementById('thumb').src = data.thumbnail;
+        document.getElementById('previewTitle').textContent = data.title;
+        document.getElementById('previewChannel').textContent = data.channel;
+        document.getElementById('previewDuration').textContent = '⏱ ' + formatTime(data.duration);
+        preview.classList.add('visible');
+
+        infoBtn.style.display = 'none';
+        downloadBtn.style.display = 'block';
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        infoBtn.disabled = false;
+        infoBtn.classList.remove('loading');
+        infoBtn.innerHTML = '🔍 Buscar video';
+      }
+    });
+
+    // Download
+    downloadBtn.addEventListener('click', () => {
+      const url = urlInput.value.trim();
+      if (!url) return;
+      const link = document.createElement('a');
+      link.href = `/api/download?url=${encodeURIComponent(url)}&format=${selectedFormat}&quality=${selectedQuality}`;
+      link.click();
+    });
+
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') infoBtn.click();
+    });
+  </script>
+</body>
+</html>
