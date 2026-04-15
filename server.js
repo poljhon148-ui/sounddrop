@@ -13,13 +13,21 @@ app.use(express.static('public'));
 // Sanitize filename
 const sanitize = (str) => str.replace(/[<>:"/\\|?*]/g, '').trim().slice(0, 100);
 
+// Configuración de las cookies desde las variables de entorno de Railway
+const requestOptions = {
+  headers: {
+    cookie: process.env.YOUTUBE_COOKIES || ''
+  }
+};
+
 // GET /api/info?url=...
 app.get('/api/info', async (req, res) => {
   try {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: 'Falta el parámetro url' });
 
-    const info = await ytdl.getInfo(url);
+    // Se agregan las cookies a la petición de información
+    const info = await ytdl.getInfo(url, { requestOptions });
     const details = info.videoDetails;
 
     res.json({
@@ -30,7 +38,7 @@ app.get('/api/info', async (req, res) => {
     });
   } catch (err) {
     console.error('Info error:', err.message);
-    res.status(500).json({ error: 'No se pudo obtener información del video. Verifica el enlace.' });
+    res.status(500).json({ error: 'No se pudo obtener información del video. Verifica el enlace o las cookies.' });
   }
 });
 
@@ -40,7 +48,8 @@ app.get('/api/download', async (req, res) => {
     const { url, format = 'mp3', quality = '192' } = req.query;
     if (!url) return res.status(400).json({ error: 'Falta el parámetro url' });
 
-    const info = await ytdl.getInfo(url);
+    // Se agregan las cookies también aquí para obtener los metadatos necesarios para descargar
+    const info = await ytdl.getInfo(url, { requestOptions });
     const title = sanitize(info.videoDetails.title);
 
     const mimeTypes = { mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', opus: 'audio/opus' };
@@ -49,9 +58,11 @@ app.get('/api/download', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${title}.${format}"`);
     res.setHeader('Content-Type', mime);
 
+    // Se agregan las cookies al stream de audio
     const audioStream = ytdl(url, {
       quality: 'highestaudio',
       filter: 'audioonly',
+      requestOptions // <--- Esto aplica las cookies de Railway
     });
 
     ffmpeg(audioStream)
@@ -71,5 +82,5 @@ app.get('/api/download', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`✅ SoundDrop corriendo en http://localhost:${PORT}`);
+  console.log(`✅ SoundDrop corriendo en el puerto ${PORT} con soporte de Cookies`);
 });
