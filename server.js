@@ -10,13 +10,23 @@ const app = express();
 app.use(cors());
 app.use(express.static('public'));
 
-// Sanitize filename
+// Limpiar el nombre del archivo para evitar errores
 const sanitize = (str) => str.replace(/[<>:"/\\|?*]/g, '').trim().slice(0, 100);
 
-// Configuración de las cookies desde las variables de entorno de Railway
+// CONFIGURACIÓN MAESTRA DE CABECERAS
+// Esto hace que YouTube crea que la petición viene de un Chrome real
 const requestOptions = {
   headers: {
-    cookie: process.env.YOUTUBE_COOKIES || ''
+    'cookie': process.env.YOUTUBE_COOKIES || '',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'accept-language': 'es-ES,es;q=0.9',
+    'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'referer': 'https://www.youtube.com/',
+    'x-youtube-client-name': '1',
+    'x-youtube-client-version': '2.20240501.01.00'
   }
 };
 
@@ -26,7 +36,7 @@ app.get('/api/info', async (req, res) => {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: 'Falta el parámetro url' });
 
-    // Se agregan las cookies a la petición de información
+    // Intentamos obtener info con las cookies y el User-Agent
     const info = await ytdl.getInfo(url, { requestOptions });
     const details = info.videoDetails;
 
@@ -38,7 +48,9 @@ app.get('/api/info', async (req, res) => {
     });
   } catch (err) {
     console.error('Info error:', err.message);
-    res.status(500).json({ error: 'No se pudo obtener información del video. Verifica el enlace o las cookies.' });
+    res.status(500).json({ 
+      error: 'Error de acceso a YouTube. Verifica que tus cookies en Railway sigan vigentes.' 
+    });
   }
 });
 
@@ -48,7 +60,6 @@ app.get('/api/download', async (req, res) => {
     const { url, format = 'mp3', quality = '192' } = req.query;
     if (!url) return res.status(400).json({ error: 'Falta el parámetro url' });
 
-    // Se agregan las cookies también aquí para obtener los metadatos necesarios para descargar
     const info = await ytdl.getInfo(url, { requestOptions });
     const title = sanitize(info.videoDetails.title);
 
@@ -58,11 +69,11 @@ app.get('/api/download', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${title}.${format}"`);
     res.setHeader('Content-Type', mime);
 
-    // Se agregan las cookies al stream de audio
+    // Aplicar las cookies también al flujo de descarga
     const audioStream = ytdl(url, {
       quality: 'highestaudio',
       filter: 'audioonly',
-      requestOptions // <--- Esto aplica las cookies de Railway
+      requestOptions 
     });
 
     ffmpeg(audioStream)
@@ -70,17 +81,17 @@ app.get('/api/download', async (req, res) => {
       .format(format)
       .on('error', (err) => {
         console.error('FFmpeg error:', err.message);
-        if (!res.headersSent) res.status(500).end('Error al convertir el audio');
+        if (!res.headers_sent) res.status(500).end('Error al convertir el audio');
       })
       .pipe(res, { end: true });
 
   } catch (err) {
     console.error('Download error:', err.message);
-    if (!res.headersSent) res.status(500).json({ error: 'No se pudo descargar el audio.' });
+    if (!res.headersSent) res.status(500).json({ error: 'YouTube bloqueó la descarga. Intenta actualizar tus cookies.' });
   }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`✅ SoundDrop corriendo en el puerto ${PORT} con soporte de Cookies`);
+  console.log(`✅ SoundDrop Activo en puerto ${PORT}`);
 });
